@@ -9,37 +9,6 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
-
-const db = knex({
-	client: 'pg',
-	connection: {
-		host: '127.0.0.1',
-		user: 'postgres',
-		password: 'supranite',
-		database: 'heroportal'
-	
-	}
-});
-
-app.get('/', (req, res) => {
-	console.log("wahhh");
-	db.select('*').from('users')
-	.then(user => {
-		console.log(user);
-		if (user.length){
-			res.json(user[0])
-		} else {
-			res.status(400).json('Not found!')
-		}
-	})
-})
-
-
-app.get('/wow', (req, res) => {
-	console.log("woohoo2");
-	res.send(database.users);
-})
-
 app.get('/profile/:id', (req, res) => {
 	console.log('WAODFS');
 	const {id} = req.params;
