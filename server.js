@@ -9,20 +9,13 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
-
+//connection credentials removed on public github for security purposes
 const db = knex({
-	client: 'pg',
-	connection: {
-		host: '127.0.0.1',
-		user: 'postgres',
-		password: 'supranite',
-		database: 'heroportal'
 	
 	}
 });
 
 app.get('/', (req, res) => {
-	console.log("wahhh");
 	db.select('*').from('users')
 	.then(user => {
 		console.log(user);
