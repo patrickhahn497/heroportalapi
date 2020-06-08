@@ -8,6 +8,12 @@ const knex = require('knex');
 const app = express();
 app.use(bodyParser.json());
 app.use(cors());
+// app.use(function(req, res, next) {
+//        res.header("Access-Control-Allow-Origin", "*");
+//        res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+//        res.header('Access-Control-Allow-Methods', 'PUT, POST, GET, DELETE, OPTIONS');
+//           next();
+//     });
 
 
 const db = knex({
@@ -21,24 +27,6 @@ const db = knex({
 	}
 });
 
-app.get('/', (req, res) => {
-	console.log("wahhh");
-	db.select('*').from('users')
-	.then(user => {
-		console.log(user);
-		if (user.length){
-			res.json(user[0])
-		} else {
-			res.status(400).json('Not found!')
-		}
-	})
-})
-
-
-app.get('/wow', (req, res) => {
-	console.log("woohoo2");
-	res.send(database.users);
-})
 
 app.get('/users/:id', (req, res) => {
 	const {id} = req.params;
@@ -332,18 +320,35 @@ app.get('/userjobs/:userid', (req, res) => {
 	//join jobtable with jobroles table on job id
 	//inner join on the first one because both the user and job need to exist in order to be returned
 	//using leftjoin on the second one in the case that a job has no specified roles
-	db.select('users.name', 'jobs.title', 'jobs.threatrank','jobroles.rolename', 'jobs.jobid', 'jobs.employerid')
+	db.select('emp.name as employername', 'jobs.title', 'jobs.threatrank', 'userjobs.rolename', 'jobs.jobid', 'jobs.employerid')
+		.from('users')
+		.where('users.id', userid)
+		.innerJoin('userjobs', 'users.id', 'userjobs.userid')
+		.leftJoin('jobs', 'jobs.jobid', 'userjobs.jobid')
+		.leftJoin('users as emp', 'emp.id', 'jobs.employerid')
+		.then( results => {
+			console.log(results);
+			res.json(results);
+		})
+		
+		.catch( err => res.status(400).json("Jobs associated with that user not found"))
+})
+
+app.get('/employerjobs/:employerid', (req, res) => {
+	const {employerid} = req.params;
+	//join jobtable with jobroles table on job id
+	//inner join on the first one because both the user and job need to exist in order to be returned
+	//using leftjoin on the second one in the case that a job has no specified roles
+	db.select('users.name as employername', 'jobs.title', 'jobs.threatrank','jobroles.rolename', 'jobs.jobid', 'jobs.employerid')
 		.from('users')
 		.innerJoin('jobs', 'users.id', 'jobs.employerid')
 		.leftJoin('jobroles', 'jobs.jobid', 'jobroles.jobid')
-		.where('users.id', userid)
+		.where('users.id', employerid)
 		.then( results => {
 			console.log(results);
 			res.json(results);
 		})
 		.catch( err => res.status(400).json("Jobs associated with that user not found"))
-
-
 })
 
 app.post('/userjobs', (req, res) => {
@@ -377,6 +382,192 @@ app.get('/jobroles/:jobid', (req, res) => {
 		})
 })
 
+app.get('/jobapplications/:jobid', (req, res) => {
+	const {jobid} = req.params;
+	// db('jobapplications')
+	// 	.select("*")
+	// 	.where("jobid", parseInt(jobid))
+	// 	.then(jobapps =>{
+	// 			res.json(jobapps);
+	// 		}
+	// 	)
+	// 	.catch( err => res.status(400).json("job applications for this job not found"))
+	db.select("users.name", "JA.jobappid", "JA.jobid", "JA.applicantid", "JA.rolename", "JA.status")
+		.from("jobapplications as JA")
+		.innerJoin('users', 'users.id', 'JA.applicantid')
+		.where("jobid", parseInt(jobid))
+		.where("JA.status", "pending")
+		.then(jobapps =>{
+			res.json(jobapps);
+		})
+		.catch( err => res.status(400).json("job applications for this job not found"))
+})
+
+app.get('/userjobapplications/:userid', (req, res) => {
+	const {userid} = req.params;
+	//used to update the status of a jobapp
+	console.log("request to patch made");
+
+	db.select("jobs.title", "JA.jobappid", "jobs.employerid","JA.jobid", "JA.applicantid", 
+		"JA.rolename", "JA.status", "jobs.threatrank", "emp.name as employername")
+		.from("jobapplications as JA")
+		.innerJoin('jobs', 'jobs.jobid', 'JA.jobid')
+		.where("JA.applicantid", parseInt(userid))
+		.leftJoin('users as emp', 'emp.id', 'jobs.employerid')
+		.then(jobapps =>{
+			res.json(jobapps);
+		})
+		.catch( err => res.status(400).json("job applications for this job not found"))
+})
+
+app.post('/jobapplications', (req, res) => {
+	const {applicantid, jobid, rolename} = req.body;
+
+	db('jobapplications').insert(
+		{
+			applicantid: parseInt(applicantid),
+			jobid: parseInt(jobid),
+			rolename: rolename,
+			status: "pending"
+		},
+		"*"
+	)
+	.then(jobapp => res.json(jobapp))
+	.catch(err => res.status(400).json("Unable to insert job application"))
+})
+
+app.patch('/jobapplications', (req, res) => {
+	//used to update the status of a jobapp
+	const {status, applicantid, jobid, rolename} = req.body;
+	console.log("request to patch made");
+
+	db('jobapplications')
+		.where('applicantid', applicantid)
+		.where('jobid', jobid)
+		.where('rolename', rolename)
+		.update(
+		{
+			status: status
+		},
+		"*"
+	)
+	.then(jobapp => res.json(jobapp))
+	.catch(err => res.status(400).json("Unable to update job application"))
+})
+
+app.post('/profiledescriptions', (req, res) => {
+	const {userid, description, profilepictureurl} = req.body;
+	db('profiledescriptions').insert(
+		{
+			userid: parseInt(userid),
+			description: description,
+			profilepictureurl: profilepictureurl
+		},
+		"*"
+	)
+	.then(profiledescription => res.json(profiledescription))
+	.catch(err => res.status(400).json("Unable to insert profile description"))
+	
+})
+
+app.get('/profiledescriptions/:userid', (req, res) => {
+	const {userid} = req.params;
+	db('profiledescriptions')
+		.select("*")
+		.where("userid", userid)
+		.then(profiledescription => res.json(profiledescription[0]))
+		.catch(err => res.status(400).json("Unable to retrieve profile description"))
+
+})
+
+app.get('/filteredjobs', (req, res) => {
+	const {rolename, threatrank, employername, title} = req.body;
+	let query = db.select("jobs.title", "jobs.threatrank", "jobroles.rolename", "employers.name as employername")
+					.from("jobs")
+					.innerJoin("jobroles", "jobroles.jobid", "jobs.jobid")
+					.leftJoin("users as employers", "employers.id", "jobs.employerid");
+	if (rolename){
+		query.where("jobroles.rolename", rolename);
+	}
+	if (threatrank){
+		query.where("jobs.threatrank", threatrank);
+	}
+	if (employername){
+		query.where("employers.name", employername);
+	}
+	if (title){
+		query.where("jobs.title", title);
+	}
+
+	query.then((results) => res.json(results)).catch(err => res.status(400).json("unable to find filtered jobs"));
+})
+
+app.get('/recommendedjobs/:userid', (req, res) => {
+	const {userid} = req.params;
+	let recommendedranks = [];
+	//let rolenames = [];
+	db('attributes')
+		.select("*")
+		.where("id", userid)
+		.then(results => {
+			console.log(results);
+			let attributes = results[0];
+			delete attributes["id"];
+			let weightedstats = Object.values(attributes).sort((a, b) => a-b).slice(2);
+			weightedstats[3]*=2;
+			weightedstats[2]*=2;
+			let sum = 0;
+			for (let i in weightedstats){
+				sum+=weightedstats[i];
+			}
+			//stats are weight like this
+				//top 2 stats are doubled
+				//mid 2 stats stay the same
+				//bottom 2 stats are ignored
+			console.log(weightedstats);
+			console.log(sum);
+			if (sum>100){
+				recommendedranks.push('S');
+			}
+			if (sum<=105 && sum>=90){
+				recommendedranks.push('A');
+			}
+			if (sum<=95 && sum>=80){
+				recommendedranks.push('B');
+			}
+			if (sum<=85 && sum>=70){
+				recommendedranks.push('C');
+			}
+			if (sum<=75 && sum>=60){
+				recommendedranks.push('D');
+			}
+			if (sum<=60){
+				recommendedranks.push('E');
+			}
+			console.log(recommendedranks);
+		})
+		.then(() => {
+			db.select("rolename")
+				.from("userroles")
+				.where("userid", userid)
+				.then(roles => {
+					return roles.map(role => role.rolename);
+				})
+				.then((rolenames)=> {
+					db.select("jobs.title", "jobs.threatrank", "jobroles.rolename", "employers.name as employername")
+						.from("jobs")
+						.innerJoin("jobroles", "jobroles.jobid", "jobs.jobid")
+						.leftJoin("users as employers", "employers.id", "jobs.employerid")
+						.where('jobs.threatrank', 'in', recommendedranks)
+						.where('jobroles.rolename', 'in', rolenames)
+						.where('jobroles.preference', '!=', 'banned')
+						.then(results => res.json(results));
+				})
+		})
+		
+	
+
+})
 
 
 app.listen(3000, () => {
