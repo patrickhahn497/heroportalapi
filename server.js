@@ -15,7 +15,7 @@ app.use(cors());
 //           next();
 //     });
 
-
+//FOR LOCALHOST
 const db = knex({
 	client: 'pg',
 	connection: {
@@ -26,6 +26,16 @@ const db = knex({
 	
 	}
 });
+
+// for HEROKU SERVER
+// const db = knex({
+// 	client: 'pg',
+// 	connection: {
+// 		connectionString: process.env.DATABASE_URL,
+// 		ssl: true,
+	
+// 	}
+// });
 
 
 app.get('/users/:id', (req, res) => {
@@ -570,6 +580,10 @@ app.get('/recommendedjobs/:userid', (req, res) => {
 })
 
 
-app.listen(3000, () => {
-	console.log('app is running on port 3000');
+// app.listen(3000, () => {
+// 	console.log('app is running on port 3000');
+// })
+
+app.listen(process.env.PORT || 3000, () => {
+	console.log(`app is running on port ${process.env.PORT}`);
 })
