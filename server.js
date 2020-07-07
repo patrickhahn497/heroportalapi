@@ -16,14 +16,15 @@ app.use(cors());
 //           next();
 //     });
 
-//FOR LOCALHOST
-const db = knex({
-	client: 'pg',
-	connection: {
 
-	
-	}
-});
+//connection credentials removed on public github for security purposes
+//FOR LOCALHOST
+// const db = knex({
+// 	client: 'pg',
+// 	connection: {
+// 	}
+// });
+
 
 // for HEROKU SERVER
 // const db = knex({
@@ -34,6 +35,7 @@ const db = knex({
 	
 // 	}
 // });
+
 
 //app.options('/jobapplications', cors());
 app.options('*', cors());
