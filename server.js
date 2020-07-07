@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt-nodejs');
+//i uninstalled bcrypt but kept bcrypt-nodejs. this works for heroku
 const cors = require('cors');
 const knex = require('knex');
 
@@ -16,26 +17,26 @@ app.use(cors());
 //     });
 
 //FOR LOCALHOST
+const db = knex({
+	client: 'pg',
+	connection: {
+
+	
+	}
+});
+
+// for HEROKU SERVER
 // const db = knex({
 // 	client: 'pg',
 // 	connection: {
-// 		host: '127.0.0.1',
-// 		user: 'postgres',
-// 		password: 'supranite',
-// 		database: 'heroportal'
+// 		connectionString: process.env.DATABASE_URL,
+// 		ssl: true,
 	
 // 	}
 // });
 
-// for HEROKU SERVER
-const db = knex({
-	client: 'pg',
-	connection: {
-		connectionString: process.env.DATABASE_URL,
-		ssl: true,
-	
-	}
-});
+//app.options('/jobapplications', cors());
+app.options('*', cors());
 
 
 app.get('/users/:id', (req, res) => {
@@ -136,7 +137,7 @@ app.post('/charactersetup', (req, res) => {
 	console.log("CHARACTER SETUP HAPPENING");
 	console.log(req.body);
 	const {id, firstname, lastname, strength, dexterity, constitution, intelligence, wisdom,
-		charisma, abilityNames, abilityDescriptions, roles} = req.body;
+		charisma, abilityNames, abilityDescriptions, roles, description, profilepictureurl} = req.body;
 
 
 	console.log("this the id", id);
@@ -164,6 +165,14 @@ app.post('/charactersetup', (req, res) => {
 	}
 
 	console.log(abilityList);
+
+	db('profiledescriptions').insert(
+		{
+			userid: id,
+			description: description,
+			profilepictureurl: profilepictureurl
+		}
+	).catch(err => res.status(400).json('invalid description'))
 
 	db('userabilities').insert(
 		abilityList
@@ -241,9 +250,10 @@ app.post('/contractsetup', (req, res) => {
 			for (let i=0; i<roleLen; i++){
 				if (rolelist[i]['preference']){
 					// rolelist[i]["roleid"] = 1;
+					console.log("job id is ", jobid);
 					rolelist[i]["spotsfilled"] = 0;
 					rolelist[i]["spotsneeded"] = parseInt(rolelist[i]["spotsneeded"]);
-					rolelist[i]["jobid"] = parseInt(jobid[0]);
+					rolelist[i]["jobid"] = jobid[0];
 					finalrolelist.push(rolelist[i]);
 				}
 			}
@@ -402,7 +412,7 @@ app.get('/jobapplications/:jobid', (req, res) => {
 	// 		}
 	// 	)
 	// 	.catch( err => res.status(400).json("job applications for this job not found"))
-	db.select("users.name", "JA.jobappid", "JA.jobid", "JA.applicantid", "JA.rolename", "JA.status")
+	db.select("users.name", "users.id", "JA.jobappid", "JA.jobid", "JA.applicantid", "JA.rolename", "JA.status")
 		.from("jobapplications as JA")
 		.innerJoin('users', 'users.id', 'JA.applicantid')
 		.where("jobid", parseInt(jobid))
@@ -446,10 +456,10 @@ app.post('/jobapplications', (req, res) => {
 	.catch(err => res.status(400).json("Unable to insert job application"))
 })
 
-app.patch('/jobapplications', (req, res) => {
+app.put('/jobapplications',  (req, res) => {
 	//used to update the status of a jobapp
 	const {status, applicantid, jobid, rolename} = req.body;
-	console.log("request to patch made");
+	console.log("request to patch made", req.body);
 
 	db('jobapplications')
 		.where('applicantid', applicantid)
